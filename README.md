@@ -45,7 +45,7 @@ Other GPUs and driver versions are untested. If you can try one, please say so i
 You need Windows, Python 3 (nothing to install) and a machine whose default D3D11 adapter is the AMD GPU. The compiled blobs are in the repo, so compiling is optional.
 
 1. Optional: `repro\compile.bat` rebuilds the blobs with fxc. The blobs I tested have these SHA-1s (also in `repro/SHA1SUMS.txt`): `repro.cso` e13972fb795ae9e5d3060a1f5073a233be9ec379, `repro_fixed_init.cso` 6fc610ba434854b52373eaa48da9f582430c2f36, `repro_fixed_break.cso` 8aba02a64a4e38474c94cacb173a4f786e23ee34.
-2. `python repro\run_all.py` runs the three blobs, each in its own process, and prints CRASH or OK.
+2. `python repro\run_all.py` runs the three blobs, each in its own process, and prints CRASH or OK (or ERROR if something else went wrong, like no D3D11 device).
 3. Or by hand, one blob per process (a crash kills the process): `python repro\repro_create.py repro\repro.cso ps`
 
 ## Expected vs actual
@@ -53,6 +53,8 @@ You need Windows, Python 3 (nothing to install) and a machine whose default D3D1
 Expected: all three blobs print `OK hr=0x00000000`. They are valid ps_5_0 bytecode, so the driver should compile them or at worst return an error HRESULT.
 
 Actual: `repro.cso` kills the process (exit code 0xC0000005, same offset every time). The two controls print `OK`.
+
+A note on the exit code: the fault is on a driver worker thread, and by default Windows Error Reporting holds the process for a few seconds to write a dump. In that window the main thread can finish and exit 0, so the crash only shows up in the event log. `repro_create.py` therefore turns the WER dialog off for itself (`SetErrorMode`), which makes the fault end the process at once with 0xC0000005. If you want the event log entry and the minidump instead (Application log, event 1000, faulting module `amdxx64.dll`, offset 0x6cbebb), run it with `--wer`: `python repro\repro_create.py repro\repro.cso ps --wer`. The exit code is then not reliable.
 
 ## Why this is valid input
 
